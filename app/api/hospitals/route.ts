@@ -1,11 +1,11 @@
 // app/api/hospitals/route.ts
-// Hospitals API with filter-first pagination
+// Simplified Hospitals API endpoint using centralized CMS service
+// Fixed: NO pagination slicing, complete data retrieval, debug logging
 
 import { NextResponse } from "next/server"
-import { fetchBranchesWithFilters, fetchAllBranches } from '@/lib/cms/wix-fetcher'
-import { CACHE_CONFIG, normalizePagination } from '@/lib/cms/cache'
+import { searchHospitals } from '@/lib/cms'
 
-// Cache headers
+// Cache configuration
 const CACHE_HEADERS = {
   'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1200',
 }
@@ -14,80 +14,54 @@ const CACHE_HEADERS = {
  * GET /api/hospitals
  * 
  * Query parameters:
- * - page: page number (default: 0)
- * - pageSize: items per page (default: 20, max: 100)
- * - branchId: filter by branch ID
- * - cityId: filter by city ID  
- * - specialtyId: filter by specialty ID
- * - treatmentId: filter by treatment ID
- * - specialistId: filter by specialist ID
- * - hospitalId: filter by hospital ID
- * - doctorId: filter by doctor ID
+ * - q: search query (optional)
+ * - page: pagination page (default: 0) - IGNORED for complete data
+ * - pageSize: items per page (default: 50) - IGNORED, returns all
  */
 export async function GET(req: Request) {
   const requestId = crypto.randomUUID?.() || Date.now().toString()
 
   try {
     const url = new URL(req.url)
-    
-    // Pagination params
+    const query = url.searchParams.get('q')
     const page = Math.max(0, Number(url.searchParams.get('page') || 0))
-    const pageSize = Math.min(
-      CACHE_CONFIG.MAX_PAGE_SIZE,
-      Math.max(1, Number(url.searchParams.get('pageSize') || CACHE_CONFIG.DEFAULT_PAGE_SIZE))
-    )
+    // Allow fetching up to 1000 records (Wix API limit)
+    const pageSize = Math.max(1, Number(url.searchParams.get('pageSize') || 1000))
 
-    // Filter params
-    const branchIds = url.searchParams.getAll('branchId')
-    const cityIds = url.searchParams.getAll('cityId')
-    const specialtyIds = url.searchParams.getAll('specialtyId')
-    const treatmentIds = url.searchParams.getAll('treatmentId')
-    const specialistIds = url.searchParams.getAll('specialistId')
-    const hospitalIds = url.searchParams.getAll('hospitalId')
-    const doctorIds = url.searchParams.getAll('doctorId')
-    const accreditationIds = url.searchParams.getAll('accreditationId')
+    console.log(`[DEBUG] /api/hospitals: requestId=${requestId}, query="${query}", page=${page}, pageSize=${pageSize}`)
 
-    // Check if this is an initial load (no filters)
-    const hasFilters = branchIds.length > 0 || cityIds.length > 0 || specialtyIds.length > 0 || 
-                       treatmentIds.length > 0 || specialistIds.length > 0 || hospitalIds.length > 0 ||
-                       doctorIds.length > 0 || accreditationIds.length > 0
+    // Fetch ALL hospitals using centralized CMS service (NO PAGINATION)
+    console.log(`[DEBUG] /api/hospitals: Calling searchHospitals with query="${query}"`)
+    const hospitals = await searchHospitals(query || '')
+    console.log(`[DEBUG] /api/hospitals: Found ${hospitals.length} hospitals`)
 
-    let result
+    // Debug: log treatment counts per hospital
+    hospitals.forEach((h: any, idx: number) => {
+      const treatmentCount = h.treatments?.length || 0
+      const branchCount = h.branches?.length || 0
+      console.log(`[DEBUG] /api/hospitals: Hospital ${idx+1}: ${h.hospitalName} - ${branchCount} branches, ${treatmentCount} treatments`)
+    })
 
-    if (hasFilters) {
-      // Filter first, then paginate
-      result = await fetchBranchesWithFilters(
-        { branchIds, cityIds, specialtyIds, treatmentIds, specialistIds, hospitalIds, doctorIds, accreditationIds },
-        { page, pageSize }
-      )
-    } else {
-      // Initial load - fetch all and paginate
-      const branches = await fetchAllBranches()
-      const { page: normalizedPage, pageSize: normalizedPageSize } = normalizePagination(page, pageSize)
-      
-      const startIndex = normalizedPage * normalizedPageSize
-      const paginatedBranches = branches.slice(startIndex, startIndex + normalizedPageSize)
-      
-      result = {
-        branches: paginatedBranches,
-        total: branches.length,
-        hasMore: startIndex + normalizedPageSize < branches.length,
-      }
-    }
+    // Return ALL data without pagination slicing
+    const total = hospitals.length
+    const hasMore = false // Always false since we return all data
+
+    console.log(`[DEBUG] /api/hospitals: Returning ${total} hospitals (no pagination)`)
 
     return NextResponse.json(
       {
-        items: result.branches,
-        total: result.total,
-        page,
-        pageSize,
-        hasMore: result.hasMore,
+        items: hospitals,
+        total,
+        page: 0, // Always 0 since we return all
+        pageSize: total, // Return all items
+        hasMore: false,
       },
       {
         headers: {
           ...CACHE_HEADERS,
           'X-Request-Id': requestId,
-          'X-Total-Count': String(result.total),
+          'X-Total-Count': String(total),
+          'X-Has-More': String(hasMore),
         },
       }
     )
