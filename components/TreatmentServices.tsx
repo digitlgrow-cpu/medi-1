@@ -152,7 +152,7 @@ export default function ServiceSection() {
             <BriefcaseMedical className="h-10 w-10 text-blue-600" />
           </div>
           <h2 className="md:text-4xl text-3xl font-bold text-[#241d1f] mb-4">
-             Available Treatments
+            Our Treatments
           </h2>
          
         </div>
@@ -166,7 +166,7 @@ export default function ServiceSection() {
         <div className="container mx-auto">
           <div className="mb-5">
             <h2 className="text-2xl md:text-3xl font-bold text-[#241d1f] mb-2">
-              Available Treatments
+              Our Treatments
             </h2>
          
           </div>

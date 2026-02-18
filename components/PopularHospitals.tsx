@@ -45,7 +45,7 @@ const LoadingSkeleton = () => (
             className="rounded-xl border border-gray-100 shadow-sm overflow-hidden flex flex-col h-full"
           >
             <div className="w-full h-56 bg-gray-200 animate-pulse" />
-            <div className="p-6 space flex-col flex-grow">
+            -y-4 flex<div className="p-6 space flex-col flex-grow">
               <div className="h-6 w-3/4 bg-gray-200 rounded animate-pulse" />
               <div className="h-4 w-full bg-gray-200 rounded animate-pulse" />
               <div className="h-4 w-5/6 bg-gray-200 rounded animate-pulse" />
@@ -149,8 +149,8 @@ export default function PopularHospitalsSection() {
           <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-50 rounded-full mb-6">
             <Building2 className="h-10 w-10 text-blue-600" />
           </div>
-           <h2 className="text-2xl md:text-3xl font-bold text-[#241d1f] mb-2">
-            Available Hospitals
+          <h2 className="md:text-4xl text-3xl font-bold text-[#241d1f] mb-4">
+            Our Hospitals
           </h2>
           <p className="text-lg text-[#241d1f]">
             Hospital information is currently being updated. Please check back soon!
@@ -173,8 +173,8 @@ export default function PopularHospitalsSection() {
 
           <div className="flex justify-between items-center mb-5">
             <div className="space-y-2">
-              <h2 className="text-2xl md:text-3xl font-bold text-[#241d1f] mb-2">
-                Available Hospitals
+              <h2 className="text-3xl md:text-4xl font-bold text-[#241d1f]">
+                Popular Hospitals
               </h2>
             
             </div>

@@ -172,7 +172,7 @@ const SearchDropdown = ({
   }
 
   return (
-    <div ref={ref} className="relative w-full max-w-xl mx-auto">
+    <div ref={ref} className="md:relative w-full max-w-xl mx-auto">
       <div className="md:relative">
         <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
         <input
@@ -189,7 +189,7 @@ const SearchDropdown = ({
         )}
       </div>
       {isOpen && filtered.length > 0 && (
-        <div className="absolute w-full mx-auto left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-96 overflow-y-auto">
+        <div className="absolute w-[98%] mx-auto left-0 right-0 z-50 md:mt-1.5 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-96 overflow-y-auto md:left-auto md:right-auto md:w-full">
           {filtered.map(opt => (
             <button
               key={`${opt.type}-${opt.id}`}
@@ -243,9 +243,7 @@ const BranchFilter = ({ allHospitals, initialSearch = "" }: BranchFilterProps) =
       const seen = new Set<string>()
 
       const addTreatment = (opt: AllTreatmentOption) => {
-        // Deduplicate by treatment name (slugified) instead of ID
-        // since same treatment can exist in multiple hospitals with different IDs
-        const key = `treatment-${slug(opt.name)}`
+        const key = `${opt.type}-${opt.id}`
         if (!seen.has(key)) {
           allTreatmentOptions.push(opt)
           seen.add(key)
@@ -342,14 +340,7 @@ const BranchFilter = ({ allHospitals, initialSearch = "" }: BranchFilterProps) =
     const opts: UniversalOption[] = []
     const seen = new Set<string>()
 
-    const add = (opt: UniversalOption) => { 
-      // For treatments, deduplicate by name (slugified) since same treatment can exist in multiple hospitals
-      const key = opt.type === 'treatment' ? `treatment-${slug(opt.name)}` : `${opt.type}-${opt.id}`
-      if (!seen.has(key)) { 
-        opts.push(opt); 
-        seen.add(key); 
-      } 
-    }
+    const add = (opt: UniversalOption) => { if (!seen.has(`${opt.type}-${opt.id}`)) { opts.push(opt); seen.add(`${opt.type}-${opt.id}`); } }
 
     // Doctors - HIDDEN from dropdown (only accessible via specialties)
     // allHospitals.forEach(h => {
@@ -358,7 +349,6 @@ const BranchFilter = ({ allHospitals, initialSearch = "" }: BranchFilterProps) =
     // })
 
     // Treatments from all sources (Wix API + hospitals + branches + specialists)
-    // Already deduplicated in fetchAllTreatments
     allTreatments.forEach((t) => {
       add({
         id: t.id,
@@ -369,6 +359,39 @@ const BranchFilter = ({ allHospitals, initialSearch = "" }: BranchFilterProps) =
         city: t.city || ''
       })
     })
+
+    // Hospital Treatments (fallback - in case any were missed)
+    const treatments = new Map<string, UniversalOption>()
+    allHospitals.forEach(h => {
+      const hname = h.hospitalName || ''
+      h.treatments?.forEach((t: TreatmentData) => {
+        const name = getName(t)
+        if (name && name !== 'Unknown') {
+          const id = t._id || t.id || slug(name)
+          if (!seen.has(`treatment-${id}`)) treatments.set(id, { id, name, type: 'treatment', label: 'Treatment', hospitalName: hname, city: '' })
+        }
+      })
+      h.branches?.forEach(b => {
+        const city = getCity(b.city)
+        b.treatments?.forEach((t: any) => {
+          const name = getName(t)
+          if (name && name !== 'Unknown') {
+            const id = t._id || t.id || slug(name)
+            if (!seen.has(`treatment-${id}`)) treatments.set(id, { id, name, type: 'treatment', label: 'Treatment', hospitalName: hname, city })
+          }
+        })
+        b.specialists?.forEach((s: any) => {
+          s.treatments?.forEach((t: any) => {
+            const name = getName(t)
+            if (name && name !== 'Unknown') {
+              const id = t._id || t.id || slug(name)
+              if (!seen.has(`treatment-${id}`)) treatments.set(id, { id, name, type: 'treatment', label: 'Treatment', hospitalName: hname, city })
+            }
+          })
+        })
+      })
+    })
+    treatments.forEach(o => add(o))
 
     // Branches
     allHospitals.forEach(h => {
